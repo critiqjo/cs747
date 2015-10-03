@@ -8,7 +8,7 @@ fn read_line(stdin: &mut io::Stdin) -> String {
     let mut line = String::new();
     match stdin.read_line(&mut line) {
         Err(_) | Ok(0) => panic!("Read error"),
-        _ => { line.pop(); line },
+        _ => line,
     }
 }
 
@@ -21,8 +21,8 @@ fn from_str<T, U>(ustr: U) -> T
 fn main() {
     let mut stdin = io::stdin();
 
-    let n: usize = from_str(read_line(&mut stdin)); // # of states
-    let k: usize = from_str(read_line(&mut stdin)); // # of actions
+    let n: usize = from_str(read_line(&mut stdin).trim()); // # of states
+    let k: usize = from_str(read_line(&mut stdin).trim()); // # of actions
 
     let (r, t) = { // reward and transition functions
         let mut read_f64_3d = |x, y, z| -> Vec3D<f64> {
@@ -47,7 +47,7 @@ fn main() {
          read_f64_3d(n, k, n))
     };
 
-    let g: f64 = from_str(read_line(&mut stdin)); // discount factor
+    let g: f64 = from_str(read_line(&mut stdin).trim()); // discount factor
 
     let q_s_calc = |v: &Vec<f64>, s: usize| -> Vec<f64> {
         // returns a vector [ Q(s,a) for all a in state s ]
