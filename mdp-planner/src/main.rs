@@ -50,10 +50,15 @@ fn main() {
     let g: f64 = from_str(read_line(&mut stdin)); // discount factor
 
     let q_s_calc = |v: &Vec<f64>, s: usize| -> Vec<f64> {
+        // returns a vector [ Q(s,a) for all a in state s ]
         r[s].iter()
             .zip(t[s].iter())
             .map(|(r_sa, t_sa)| {
-                r_sa.iter().zip(t_sa.iter())
+                // for each action in state s, calculate:
+                // Q(s,a) = Sum over s' { T(s,a,s') * [ R(s,a,s') +
+                //                                      gamma * V(s') ] }
+                r_sa.iter()
+                    .zip(t_sa.iter())
                     .enumerate()
                     .fold(0.0, |acc, (s_, (r_sas_, t_sas_))| {
                         acc + t_sas_ * (r_sas_ + g * v[s_])
@@ -63,7 +68,7 @@ fn main() {
     };
 
     // value iteration
-    let theta = 1e-6;
+    let theta = 1e-10;
     let mut v = vec![0f64; n];
     loop {
         let mut delta = 0.0;
@@ -104,6 +109,6 @@ fn main() {
                 }).unwrap());
     }
     for (a, v_s) in pi {
-        println!("{:.5} {}", v_s, a);
+        println!("{:.6} {}", v_s, a);
     }
 }
