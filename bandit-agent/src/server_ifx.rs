@@ -21,7 +21,7 @@ impl ServerIfx {
     }
 
     pub fn pull_arm(&mut self, arm: usize) -> u8 {
-        let _ = self.stream.write(arm.to_string().as_bytes());
+        let _ = self.stream.write((arm.to_string()+"\n").as_bytes());
         if let Ok(len) = self.stream.read(self.read_buf.as_mut_slice()) {
             String::from_utf8(self.read_buf[..len-1].to_vec())
                 .unwrap_or_else(|_| panic!("Bad stream!"))
