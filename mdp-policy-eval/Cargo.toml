@@ -1,0 +1,4 @@
+[package]
+name = "mdp-policy-eval"
+version = "0.1.0"
+authors = ["critiqjo <john.ch.fr@gmail.com>"]
