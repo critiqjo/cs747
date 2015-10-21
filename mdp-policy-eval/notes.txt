@@ -1,0 +1,63 @@
+Algorithms
+==========
+
+The default executable included implements TD(1) for evaluating the policy.
+It does so as follows:
+
+  * for each state s, maintain a structure with 3 fields:
+  * state_struct[s] = { cumulative_reward_sum: 0,
+                        num_encounters: 0,
+                        factor: 0 }
+
+  * for each (s, a, r) triplet along the trajectory, do:
+  *     for each state s':
+  *         if s' = s:
+  *             state_struct[s].num_encounters += 1
+  *             state_struct[s].factor         += 1
+  *         endif
+  *         state_struct[s'].cumulative_reward_sum += state_struct[s'].factor * r
+  *         state_struct[s'].factor                *= discount_factor
+  *     endfor
+  * endfor
+
+  * for each state s:
+  *     V[s] = state_struct[s].cumulative_reward_sum / state_struct[s].num_encounters
+  * endfor
+
+Note that the space complexity of the above algorithm is O(n) where n is the number of states.
+
+---
+
+A second executable is included which compares TD(1) with batch TD(0) (with 256 passes).
+For batch TD(0), alpha in the ith pass is calculated as:
+    alpha(i) = 0.25 / i              if i <= 16
+             = 0.25 / i / sqrt(i)    otherwise
+where t is the current time step starting from 1.
+
+Instructions are given in the evaluator.sh script file for launching this executable instead.
+
+---
+
+It was observed that TD(1) was able to estimate the value functions of states better and more
+reliably than batch TD(0). This is due to the non-dependency on the alpha parameter.
+
+
+Implementation
+==============
+
+Implementation was done in Rust. No external libraries or scripts were used.
+
+Directory structure
+-------------------
+Cargo.toml      : used by Cargo for compiling (like Makefile)
+evaluator.sh    : shell script to which input file is given as argument
+target          : directory that gets created on compiling
+src             : Rust source files
+
+Compiling
+---------
+$ cargo build --release
+
+Requirements for building
+-------------------------
+* Nightly build of Rust (see https://www.rust-lang.org/install.html)
