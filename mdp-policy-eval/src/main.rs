@@ -85,12 +85,13 @@ fn main() {
                         .collect();
     // }}}
 
-    // SARSA {{{
+    // SARSA + batch Q-learning {{{
     let mut t = 2;
+    let mut alpha = 1.0;
     let mut q = vec![vec![0.0; k]; n];
     for (cur, next) in action_history.iter().zip(action_history.iter().skip(1)) {
         if let &ActionEntry::Acted(s, a, r) = cur {
-            let alpha = (t as f64).log2().powi(2).recip(); t += 1;
+            alpha = (t as f64).log2().powi(2).recip(); t += 1;
             let (s_, a_) = match next {
                 &ActionEntry::Acted(s, a, _) => (s, a),
                 &ActionEntry::Stopped(_) => break,
@@ -98,10 +99,25 @@ fn main() {
             q[s][a] = q[s][a] + alpha * (r + g * q[s_][a_] - q[s][a])
         } else { panic!("Invalid action array!"); }
     }
+
+    let base_alpha = alpha;
+    for i in 1..256 {
+        let alpha = base_alpha / i as f64;
+        for (cur, next) in action_history.iter().zip(action_history.iter().skip(1)) {
+            if let &ActionEntry::Acted(s, a, r) = cur {
+                let s_ = match next {
+                    &ActionEntry::Acted(s, _, _) => s,
+                    &ActionEntry::Stopped(s) => s,
+                };
+                q[s][a] = q[s][a] + alpha * (r + g * *get_max(q[s_].iter()) - q[s][a])
+            } else { panic!("Invalid action array!"); }
+        }
+    }
+
     let v2: Vec<f64> = q.iter().map( |q_s| *get_max(q_s.iter()) ).collect();
     // }}}
 
-    println!("  Simple vs. SARSA");
+    println!("  Simple vs. SARSA + batch Q-learning");
     for (v_s, v_s2) in v.iter().zip(v2.iter()) {
         println!("{:.6}  |  {:.6}", v_s, v_s2);
     }
