@@ -1,0 +1,15 @@
+Implemented value iteration algorithm, exactly as described in the book
+"Reinforcement Learning" by Sutton and Barto, in Rust. No external libraries or
+scripts were necessary.
+
+Directory structure:
+Cargo.toml      : used by Cargo for compiling (like Makefile)
+planner.sh      : the required shell script
+target          : directory that gets created on compiling
+src             : Rust source files
+
+Compiling:
+$ cargo build --release
+
+Requirements for building:
+* Nightly build of Rust (see https://www.rust-lang.org/install.html)
