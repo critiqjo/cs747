@@ -24,11 +24,26 @@ enum ActionEntry {
     Stopped(usize),
 }
 
+fn get_max<'a, T>(iter: T) -> &'a f64
+        where T : Iterator<Item=&'a f64> {
+    iter.fold(None, |acc, q_sa| {
+        if let Some(max) = acc {
+            if q_sa > max {
+                Some(q_sa)
+            } else {
+                Some(max)
+            }
+        } else if !q_sa.is_nan() {
+            Some(q_sa)
+        } else { None }
+    }).unwrap()
+}
+
 fn main() {
     let mut stdin = io::stdin();
 
     let n: usize = from_str(read_line(&mut stdin).trim()); // # of states
-    let _: usize = from_str(read_line(&mut stdin).trim()); // # of actions
+    let k: usize = from_str(read_line(&mut stdin).trim()); // # of actions
     let g: f64 = from_str(read_line(&mut stdin).trim()); // discount factor
 
     let mut action_history = Vec::new();
@@ -70,7 +85,24 @@ fn main() {
                         .collect();
     // }}}
 
-    for v_s in v {
-        println!("{:.6}", v_s);
+    // SARSA {{{
+    let mut t = 2;
+    let mut q = vec![vec![0.0; k]; n];
+    for (cur, next) in action_history.iter().zip(action_history.iter().skip(1)) {
+        if let &ActionEntry::Acted(s, a, r) = cur {
+            let alpha = (t as f64).log2().powi(2).recip(); t += 1;
+            let (s_, a_) = match next {
+                &ActionEntry::Acted(s, a, _) => (s, a),
+                &ActionEntry::Stopped(_) => break,
+            };
+            q[s][a] = q[s][a] + alpha * (r + g * q[s_][a_] - q[s][a])
+        } else { panic!("Invalid action array!"); }
+    }
+    let v2: Vec<f64> = q.iter().map( |q_s| *get_max(q_s.iter()) ).collect();
+    // }}}
+
+    println!("  Simple vs. SARSA");
+    for (v_s, v_s2) in v.iter().zip(v2.iter()) {
+        println!("{:.6}  |  {:.6}", v_s, v_s2);
     }
 }
