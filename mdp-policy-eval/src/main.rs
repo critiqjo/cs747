@@ -24,21 +24,6 @@ enum ActionEntry {
     Stopped(usize),
 }
 
-fn get_max<'a, T>(iter: T) -> &'a f64
-        where T : Iterator<Item=&'a f64> {
-    iter.fold(None, |acc, q_sa| {
-        if let Some(max) = acc {
-            if q_sa > max {
-                Some(q_sa)
-            } else {
-                Some(max)
-            }
-        } else if !q_sa.is_nan() {
-            Some(q_sa)
-        } else { None }
-    }).unwrap()
-}
-
 fn main() {
     let mut stdin = io::stdin();
 
@@ -58,7 +43,7 @@ fn main() {
         }
     }
 
-    // Simplest approach {{{
+    // TD(1) {{{
     #[derive(Clone, Copy)]
     struct StateStat {
         vs_sum: f64,
@@ -69,9 +54,9 @@ fn main() {
     let mut state_stats = vec![StateStat { vs_sum: 0.0, factor: 0.0, count: 0 }; n];
 
     let mut action_iter = action_history.iter();
-    while let Some(&ActionEntry::Acted(s0, _, r)) = action_iter.next() {
-        for (s1, state_stat) in state_stats.iter_mut().enumerate() {
-            if s0 == s1 {
+    while let Some(&ActionEntry::Acted(s, _, r)) = action_iter.next() {
+        for (s_, state_stat) in state_stats.iter_mut().enumerate() {
+            if s == s_ {
                 state_stat.factor += 1.0;
                 state_stat.count += 1;
             }
@@ -79,19 +64,52 @@ fn main() {
             state_stat.factor *= g;
         }
     }
-    let v: Vec<f64> = state_stats.iter()
-                        .map(| &StateStat { vs_sum, factor: _, count } |
-                             { vs_sum / count as f64 })
-                        .collect();
+    let v1: Vec<f64> = state_stats.iter()
+                           .map(| &StateStat { vs_sum, factor: _, count } |
+                                { vs_sum / count as f64 })
+                           .collect();
+    // }}}
+
+    let inv_log_sq = |t: usize| (t as f64).log2().powi(2).recip();
+    let action_hist_cons_pairs = || action_history.iter().zip(action_history.iter().skip(1));
+
+    // TD(0) {{{
+    let mut t = 2;
+    let mut v2: Vec<f64> = vec![0.0; n];
+    for (cur, next) in action_hist_cons_pairs() {
+        if let &ActionEntry::Acted(s, _, r) = cur {
+            let alpha = inv_log_sq(t); t += 1;
+            let s_ = match next {
+                &ActionEntry::Acted(s, _, _) => s,
+                &ActionEntry::Stopped(_) => break,
+            };
+            v2[s] = v2[s] + alpha * (r + g * v2[s_] - v2[s])
+        } else { panic!("Invalid action array!"); }
+    }
     // }}}
 
     // SARSA + batch Q-learning {{{
+    fn get_max<'a, T>(iter: T) -> &'a f64
+            where T : Iterator<Item=&'a f64> {
+        iter.fold(None, |acc, q_sa| {
+            if let Some(max) = acc {
+                if q_sa > max {
+                    Some(q_sa)
+                } else {
+                    Some(max)
+                }
+            } else if !q_sa.is_nan() {
+                Some(q_sa)
+            } else { None }
+        }).unwrap()
+    }
+
     let mut t = 2;
     let mut alpha = 1.0;
     let mut q = vec![vec![0.0; k]; n];
-    for (cur, next) in action_history.iter().zip(action_history.iter().skip(1)) {
+    for (cur, next) in action_hist_cons_pairs() {
         if let &ActionEntry::Acted(s, a, r) = cur {
-            alpha = (t as f64).log2().powi(2).recip(); t += 1;
+            alpha = inv_log_sq(t); t += 1;
             let (s_, a_) = match next {
                 &ActionEntry::Acted(s, a, _) => (s, a),
                 &ActionEntry::Stopped(_) => break,
@@ -103,7 +121,7 @@ fn main() {
     let base_alpha = alpha;
     for i in 1..256 {
         let alpha = base_alpha / i as f64;
-        for (cur, next) in action_history.iter().zip(action_history.iter().skip(1)) {
+        for (cur, next) in action_hist_cons_pairs() {
             if let &ActionEntry::Acted(s, a, r) = cur {
                 let s_ = match next {
                     &ActionEntry::Acted(s, _, _) => s,
@@ -114,11 +132,11 @@ fn main() {
         }
     }
 
-    let v2: Vec<f64> = q.iter().map( |q_s| *get_max(q_s.iter()) ).collect();
+    let v3: Vec<f64> = q.iter().map( |q_s| *get_max(q_s.iter()) ).collect();
     // }}}
 
-    println!("  Simple vs. SARSA + batch Q-learning");
-    for (v_s, v_s2) in v.iter().zip(v2.iter()) {
-        println!("{:.6}  |  {:.6}", v_s, v_s2);
+    println!(" {:11}| {:11}| SARSA + batch Q-learning", "TD(1)", "TD(0)");
+    for ((v_s, v_s2), v_s3) in v1.iter().zip(v2.iter()).zip(v3.iter()) {
+        println!("{:11.6} |{:11.6} | {:11.6}", v_s, v_s2, v_s3);
     }
 }
