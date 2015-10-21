@@ -28,7 +28,7 @@ fn main() {
     let mut stdin = io::stdin();
 
     let n: usize = from_str(read_line(&mut stdin).trim()); // # of states
-    let k: usize = from_str(read_line(&mut stdin).trim()); // # of actions
+    let _: usize = from_str(read_line(&mut stdin).trim()); // # of actions
     let g: f64 = from_str(read_line(&mut stdin).trim()); // discount factor
 
     let mut action_history = Vec::new();
@@ -43,6 +43,34 @@ fn main() {
         }
     }
 
-    println!("n: {}, k: {}, g: {}", n, k, g);
-    println!("{:?}", action_history);
+    // Simplest approach {{{
+    #[derive(Clone, Copy)]
+    struct StateStat {
+        vs_sum: f64,
+        factor: f64,
+        count: usize,
+    }
+
+    let mut state_stats = vec![StateStat { vs_sum: 0.0, factor: 0.0, count: 0 }; n];
+
+    let mut action_iter = action_history.iter();
+    while let Some(&ActionEntry::Acted(s0, _, r)) = action_iter.next() {
+        for (s1, state_stat) in state_stats.iter_mut().enumerate() {
+            if s0 == s1 {
+                state_stat.factor += 1.0;
+                state_stat.count += 1;
+            }
+            state_stat.vs_sum += state_stat.factor * r;
+            state_stat.factor *= g;
+        }
+    }
+    let v: Vec<f64> = state_stats.iter()
+                        .map(| &StateStat { vs_sum, factor: _, count } |
+                             { vs_sum / count as f64 })
+                        .collect();
+    // }}}
+
+    for v_s in v {
+        println!("{:.6}", v_s);
+    }
 }
