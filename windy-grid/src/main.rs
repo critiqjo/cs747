@@ -2,9 +2,9 @@ extern crate coio;
 extern crate rustc_serialize;
 
 use std::io::{stdin, Read, Write, BufReader, BufRead};
+use std::sync::Arc;
 use coio::net::TcpListener;
 use rustc_serialize::json;
-use std::ops::Deref;
 
 /// When an agent connects, its initial position will be sent back.
 /// The bottom-leftmost cell is the (0, 0) cell.
@@ -14,9 +14,9 @@ use std::ops::Deref;
 /// `u`, `r`, `d`, and `l`, for up, right, down, and left;
 /// and if kings moves allowed,
 /// `1`, `2`, `3`, and `4`, for UR, DR, DL, and UL (think quadrants).
-/// Any other character is simply ignored.
+/// Anything else is ignored, and an `"err"` is sent back.
 ///
-/// After each move, a reply of the form: `"x y\r\n"` is sent back,
+/// After each move, a reply of the form: `"x y"` is sent back,
 /// indicating the agent's position after the move.
 
 #[derive(RustcDecodable, RustcEncodable)]
@@ -28,7 +28,9 @@ struct GridConf {
     /// height of the grid
     height: usize,
     /// starting position of agent
-    start_pos: (usize, usize),
+    start_pos: (isize, isize),
+    /// vertical wind strengths (positive => upwards)
+    winds: Vec<i8>,
 }
 
 fn main() {
@@ -36,36 +38,59 @@ fn main() {
     let mut json_str = String::new();
     let _ = stdin.read_to_string(&mut json_str).unwrap();
     let grid_conf: GridConf = json::decode(&json_str).unwrap();
+
+    if grid_conf.winds.len() != grid_conf.width {
+        panic!("Length of winds array and grid width must match.");
+    }
+
+    let grid_conf = Arc::new(grid_conf);
+
     coio::Scheduler::new().run(move || {
-        let listener = TcpListener::bind(grid_conf.listen_addr.deref()).unwrap();
-        println!("Waiting for connection ...");
+        let listener = TcpListener::bind(&grid_conf.listen_addr as &str);
+        let listener = match listener {
+            Ok(l) => l,
+            Err(e) => panic!("Error on binding: {}", e),
+        };
+
+        println!("Waiting for agents...");
 
         for stream in listener.incoming() {
             let (mut stream, addr) = stream.unwrap();
-            println!("Got connection from {:?}", addr);
+            println!("Agent from {} arrived!", addr);
 
-            let start_pos = grid_conf.start_pos.clone();
+            let grid_conf = grid_conf.clone();
             coio::spawn(move || {
-                let mut pos = start_pos;
+                let mut pos = grid_conf.start_pos;
                 let reader = BufReader::new(stream.try_clone().unwrap());
-                let mut write = |p: &(usize, usize)|
-                    write!(&mut stream, "{} {}\r\n", p.0, p.1);
 
-                let _ = write(&pos);
+                let _ = write!(&mut stream, "{} {}\r\n", pos.0, pos.1);
                 for line in reader.lines() {
+                    let mut invalid_move = false;
+                    let wind = grid_conf.winds[pos.0 as usize];
                     if let Ok(line) = line {
                         match line.trim() {
                             "u" | "U" => pos.1 += 1,
                             "r" | "R" => pos.0 += 1,
                             "d" | "D" => pos.1 -= 1,
                             "l" | "L" => pos.0 -= 1,
-                            _ => (),
+                            _ => invalid_move = true,
                         }
                     } else { break }
 
-                    let _ = write(&pos);
+                    let _ = if invalid_move {
+                        write!(&mut stream, "err\r\n")
+                    } else {
+                        fn bound(var: &mut isize, min: usize, max: usize) {
+                            if *var < min as isize { *var = min as isize }
+                            if *var > max as isize { *var = max as isize }
+                        }
+                        pos.1 += wind as isize;
+                        bound(&mut pos.0, 0, grid_conf.width - 1);
+                        bound(&mut pos.1, 0, grid_conf.height - 1);
+                        write!(&mut stream, "{} {}\r\n", pos.0, pos.1)
+                    };
                 }
-                println!("Client closed");
+                println!("Agent from {} left!", addr);
             });
         }
     }).unwrap();
