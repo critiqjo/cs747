@@ -1,0 +1,7 @@
+[package]
+name = "windy-grid"
+version = "0.1.0"
+authors = ["critiqjo <john.ch.fr@gmail.com>"]
+
+[dependencies.coio]
+git = "https://github.com/zonyitoo/coio-rs.git"
