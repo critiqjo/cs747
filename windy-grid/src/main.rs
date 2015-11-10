@@ -81,6 +81,10 @@ fn main() {
                             "r" | "R" => pos.0 += 1,
                             "d" | "D" => pos.1 -= 1,
                             "l" | "L" => pos.0 -= 1,
+                            "1" => { pos.0 += 1; pos.1 += 1 },
+                            "2" => { pos.0 += 1; pos.1 -= 1 },
+                            "3" => { pos.0 -= 1; pos.1 -= 1 },
+                            "4" => { pos.0 -= 1; pos.1 += 1 },
                             _ => invalid_move = true,
                         }
                     } else { break }
