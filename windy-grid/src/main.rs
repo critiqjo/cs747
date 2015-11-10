@@ -1,7 +1,7 @@
 extern crate coio;
 extern crate rustc_serialize;
 
-use std::io::{stdin, Read, Write, BufReader, BufRead};
+use std::io::{stdin, Read, Write};
 use std::sync::Arc;
 use coio::net::TcpListener;
 use rustc_serialize::json;
@@ -61,10 +61,18 @@ fn main() {
             let grid_conf = grid_conf.clone();
             coio::spawn(move || {
                 let mut pos = grid_conf.start_pos;
-                let reader = BufReader::new(stream.try_clone().unwrap());
 
                 let _ = write!(&mut stream, "{} {}\r\n", pos.0, pos.1);
-                for line in reader.lines() {
+                loop {
+                    let mut bytes = [0u8; 4];
+                    let line = match stream.read(&mut bytes) {
+                        Ok(n) if n > 0 => {
+                            let (s, _) = bytes.split_at(n);
+                            String::from_utf8(s.to_vec())
+                        },
+                        _ => break,
+                    };
+
                     let mut invalid_move = false;
                     let wind = grid_conf.winds[pos.0 as usize];
                     if let Ok(line) = line {
@@ -78,7 +86,7 @@ fn main() {
                     } else { break }
 
                     let _ = if invalid_move {
-                        write!(&mut stream, "err\r\n")
+                        continue
                     } else {
                         fn bound(var: &mut isize, min: usize, max: usize) {
                             if *var < min as isize { *var = min as isize }
