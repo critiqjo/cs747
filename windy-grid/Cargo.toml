@@ -5,6 +5,7 @@ authors = ["critiqjo <john.ch.fr@gmail.com>"]
 
 [dependencies]
 rustc-serialize = "0.3"
+rand = "0.3"
 
 [dependencies.coio]
 git = "https://github.com/zonyitoo/coio-rs.git"

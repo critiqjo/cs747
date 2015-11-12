@@ -1,0 +1,54 @@
+set terminal png transparent nocrop enhanced size 960,640 font "sans,11"
+
+# outdir has to be set
+
+set xlabel "Time steps"
+set ylabel "Episodes"
+
+set output outdir.'/episode-rate-4simple.png'
+set title "Number of episodes vs time steps\n(simple, normal moves, ".outdir." winds)"
+plot outdir.'/out4-simple.dat' using 2:1 with lines notitle
+
+set output outdir.'/episode-rate-4.png'
+set title "Number of episodes vs time steps\n(comparison of reward methods, normal moves, ".outdir." winds)"
+plot outdir.'/out4-simple.dat' using 2:1 with lines title "Simple", \
+     outdir.'/out4-r1goal.dat' using 2:1 with lines title "Unit reward at goal", \
+     outdir.'/out4-rHgoal.dat' using 2:1 with lines title "Huge reward at goal", \
+     outdir.'/out4-noidle.dat' using 2:1 with lines title "Discourage Idling"
+
+set output outdir.'/episode-rate-8.png'
+set title "Number of episodes vs time steps\n(comparison of reward methods, king's moves, ".outdir." winds)"
+plot outdir.'/out8-simple.dat' using 2:1 with lines title "Simple", \
+     outdir.'/out8-r1goal.dat' using 2:1 with lines title "Unit reward at goal", \
+     outdir.'/out8-rHgoal.dat' using 2:1 with lines title "Huge reward at goal", \
+     outdir.'/out8-noidle.dat' using 2:1 with lines title "Discourage Idling"
+
+set xlabel "Episode"
+set ylabel "Episode length (time steps)"
+set logscale y
+
+set output outdir.'/episode-size-4simple.png'
+set title "Episode length over time\n(simple, normal moves, ".outdir." winds)"
+plot outdir.'/out4-simple.dat' using 1:3 with lines notitle
+
+set output outdir.'/episode-size-4.png'
+set title "Episode length over time\n(comparison of reward methods, normal moves, ".outdir." winds)"
+plot outdir.'/out4-simple.dat' using 1:3 with points title "Simple" lt 1 ps 0.5, \
+     outdir.'/out4-r1goal.dat' using 1:3 with points title "Unit reward at goal" lt 2 ps 0.5, \
+     outdir.'/out4-rHgoal.dat' using 1:3 with points title "Huge reward at goal" lt 3 ps 0.5, \
+     outdir.'/out4-noidle.dat' using 1:3 with points title "Discourage Idling" lt 4 ps 0.5, \
+     outdir.'/out4-simple.dat' using 1:4 with lines title "Simple (running avg)" lt 1, \
+     outdir.'/out4-r1goal.dat' using 1:4 with lines title "Unit reward at goal (running avg)" lt 2, \
+     outdir.'/out4-rHgoal.dat' using 1:4 with lines title "Huge reward at goal (running avg)" lt 3, \
+     outdir.'/out4-noidle.dat' using 1:4 with lines title "Discourage Idling (running avg)" lt 4
+
+set output outdir.'/episode-size-8.png'
+set title "Episode length over time\n(comparison of reward methods, king's moves, ".outdir." winds)"
+plot outdir.'/out8-simple.dat' using 1:3 with points title "Simple" lt 1 ps 0.5, \
+     outdir.'/out8-r1goal.dat' using 1:3 with points title "Unit reward at goal" lt 2 ps 0.5, \
+     outdir.'/out8-rHgoal.dat' using 1:3 with points title "Huge reward at goal" lt 3 ps 0.5, \
+     outdir.'/out8-noidle.dat' using 1:3 with points title "Discourage Idling" lt 4 ps 0.5, \
+     outdir.'/out8-simple.dat' using 1:4 with lines title "Simple (running avg)" lt 1, \
+     outdir.'/out8-r1goal.dat' using 1:4 with lines title "Unit reward at goal (running avg)" lt 2, \
+     outdir.'/out8-rHgoal.dat' using 1:4 with lines title "Huge reward at goal (running avg)" lt 3, \
+     outdir.'/out8-noidle.dat' using 1:4 with lines title "Discourage Idling (running avg)" lt 4

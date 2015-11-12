@@ -1,36 +1,50 @@
 extern crate rand;
 
-use std::fmt;
 use rand::{Rand, thread_rng};
-use rand::distributions::{IndependentSample, Range};
+
+const STRATEGY: Strategy = Strategy::DiscourageIdling;
+const HORIZON: usize = 16000;
 
 type Action = Action8;
 const N_ACTIONS: usize = 8;
 type QASlice = [f64; N_ACTIONS];
-
 const GRID_W: usize = 10;
 const GRID_H: usize = 7;
 type Q = [[QASlice; GRID_H]; GRID_W];
 
-#[derive(Clone, Copy)]
+#[allow(dead_code)]
+enum Strategy {
+    Simple,
+    UnitGoalReward,
+    HugeGoalReward,
+    DiscourageIdling,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct Point {
     x: usize,
     y: usize,
 }
 
-fn get_max<'a, T>(iter: T) -> (usize, &'a f64)
+fn get_max<'a, T>(iter: T) -> (Vec<usize>, f64)
         where T : Iterator<Item=&'a f64> {
-    iter.enumerate().fold(None, |acc, (i, q_sa)| {
-        if let Some((m_i, max)) = acc {
-            if q_sa > max {
-                Some((i, q_sa))
-            } else {
-                Some((m_i, max))
+    let mut max_ids = vec![];
+    let mut max_val = None;
+    for (i, v) in iter.enumerate() {
+        if let Some(m_v) = max_val {
+            if *v > m_v {
+                max_ids.truncate(1);
+                max_ids[0] = i;
+                max_val = Some(*v);
+            } else if *v == m_v {
+                max_ids.push(i);
             }
-        } else if !q_sa.is_nan() {
-            Some((i, q_sa))
-        } else { None }
-    }).unwrap()
+        } else if !v.is_nan() {
+            max_ids.push(i);
+            max_val = Some(*v);
+        }
+    }
+    (max_ids, max_val.unwrap())
 }
 
 fn main() {
@@ -39,21 +53,21 @@ fn main() {
 
     let goal = Point { x: 7, y: 3 };
 
+    // get "Q action-value list" of a point
     fn q_pos<'a>(q: &'a Q, p: Point) -> &'a QASlice { &q[p.x][p.y] }
 
     let mut rng = thread_rng();
     let mut next_action_idx = |q: &Q, pos: Point| {
         let q_xy = q_pos(q, pos);
         if f64::rand(&mut rng) > eps {
-            let (idx, _) = get_max(q_xy.iter());
-            idx
+            let (ids, _) = get_max(q_xy.iter());
+            ids[usize::rand(&mut rng) % ids.len()]
         } else {
-            Range::new(0, q_xy.len()).ind_sample(&mut rng)
+            usize::rand(&mut rng) % q_xy.len()
         }
     };
 
     let mut q = [[[0.0; N_ACTIONS]; GRID_H]; GRID_W]; // q[x][y][a] is valid
-    let mut episodes = 0;
     let mut t = 0;
 
     'e: loop {
@@ -63,40 +77,38 @@ fn main() {
         let mut prev_act_idx = next_action_idx(&q, pos);
         let mut act_idx;
 
-        println!("episode ended, t = {}", t);
+        println!("episode start; time step {}", t);
 
         loop {
             pos = grid.try_move(Action::from(prev_act_idx)); // position due to prev action
-            let goal_reached = pos.x == goal.x && pos.y == goal.y;
-            let r = if goal_reached { 1.0 } else { -1.0 };
+            let goal_reached = pos == goal;
+            let r = match STRATEGY {
+                Strategy::Simple => if goal_reached { 0.0 } else { -1.0 },
+                Strategy::UnitGoalReward => if goal_reached { 1.0 } else { -1.0 },
+                Strategy::HugeGoalReward => if goal_reached { 1000.0 } else { -1.0 },
+                Strategy::DiscourageIdling => if pos == prev_pos { -2.0 } else if goal_reached { 1.0 } else { -1.0 },
+            };
             act_idx = next_action_idx(&q, pos); // select the next action
             q[prev_pos.x][prev_pos.y][prev_act_idx] += alpha * (r + q_pos(&q, pos)[act_idx] - q_pos(&q, prev_pos)[prev_act_idx]);
-            if goal_reached {
-                episodes += 1;
-                continue 'e;
-            }
+            if t == HORIZON { break 'e; } else { t += 1; }
+            if goal_reached { continue 'e; }
             prev_pos = pos;
             prev_act_idx = act_idx;
-            if t == 8000 { break 'e; } else { t += 1; }
         }
     }
 
+    return; // comment this out to visualize optimal actions
+
+    // print the "optimal" path found
     let visual_actions = ["->", "\\/", "<-", "/\\", "\\.", "./", "'\\", "/'"];
     for (x, q_x) in q.iter().enumerate() {
         for (y, q_xy) in q_x.iter().enumerate() {
             let (x, y) = (x, y);
-            let (idx, _) = get_max(q_xy.iter());
+            let (ids, _) = get_max(q_xy.iter());
             print!("{} ", if x == goal.x && y == goal.y { "()" }
-                          else { visual_actions[idx] });
+                          else { visual_actions[ids[0]] });
         }
         print!("\n");
-    }
-    println!("episodes: {}", episodes);
-}
-
-impl fmt::Display for Point {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({}, {})", self.x, self.y)
     }
 }
 
@@ -110,6 +122,7 @@ enum Action4 {
 }
 
 impl Action4 {
+    #[allow(dead_code)]
     fn to_char(self) -> char {
         match self {
             Action4::Up => 'u',
@@ -142,6 +155,7 @@ enum Action8 {
 }
 
 impl Action8 {
+    #[allow(dead_code)]
     fn to_char(self) -> char {
         match self {
             Action8::Up => 'u',

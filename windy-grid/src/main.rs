@@ -1,10 +1,14 @@
 extern crate coio;
+extern crate rand;
 extern crate rustc_serialize;
 
 use std::io::{stdin, Read, Write};
 use std::sync::Arc;
 use coio::net::TcpListener;
+use rand::{Rand, thread_rng};
 use rustc_serialize::json;
+
+const STOCHASTIC: bool = false;
 
 /// When an agent connects, its initial position will be sent back.
 /// The bottom-leftmost cell is the (0, 0) cell.
@@ -60,6 +64,7 @@ fn main() {
 
             let grid_conf = grid_conf.clone();
             coio::spawn(move || {
+                let mut rng = if STOCHASTIC { Some(thread_rng()) } else { None };
                 let mut pos = grid_conf.start_pos;
 
                 let _ = write!(&mut stream, "{} {}\r\n", pos.0, pos.1);
@@ -74,7 +79,12 @@ fn main() {
                     };
 
                     let mut invalid_move = false;
-                    let wind = grid_conf.winds[pos.0 as usize];
+                    let mut wind = grid_conf.winds[pos.0 as usize];
+                    if STOCHASTIC && wind > 0 {
+                        if let Some(ref mut rng) = rng {
+                            wind += i8::rand(rng) % 3 - 1;
+                        }
+                    }
                     if let Ok(line) = line {
                         match line.trim() {
                             "u" | "U" => pos.1 += 1,
